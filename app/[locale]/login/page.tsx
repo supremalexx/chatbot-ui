@@ -1,3 +1,4 @@
+// ✅ Патч с созданием профиля и рабочего пространства при регистрации
 import { Brand } from "@/components/ui/brand"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -113,14 +114,32 @@ export default async function Login({
     const cookieStore = cookies()
     const supabase = createClient(cookieStore)
 
-    const { error } = await supabase.auth.signUp({
+    const { data: userData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
     })
 
-    if (error) {
-      console.error(error)
-      return redirect(`/login?message=${error.message}`)
+    if (signUpError) {
+      console.error(signUpError)
+      return redirect(`/login?message=${signUpError.message}`)
+    }
+
+    const user = userData.user
+
+    if (user) {
+      await supabase.from("profiles").insert({
+        id: user.id,
+        email: user.email,
+        username: user.email?.split("@")[0],
+        display_name: user.email?.split("@")[0],
+        has_onboarded: false
+      })
+
+      await supabase.from("workspaces").insert({
+        user_id: user.id,
+        name: "My Workspace",
+        is_home: true
+      })
     }
 
     return redirect("/setup")
